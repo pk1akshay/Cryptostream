@@ -1,0 +1,9 @@
+logs/
+.cache/
+.venv/
+__pycache__/
+*.log
+*.tmp
+*.pyc
+AppData/
+Desktop/
