@@ -152,4 +152,4 @@ with DAG(
         python_callable=fetch_coingecko_coins_list
     )
     # The DAG will only have this single task, but you can add more if needed
-    fetch_coinapi_data >> fetch_coingecko_task
+    fetch_coinapi_data >> fetch_coingecko_task >> fetch_coindata_list
