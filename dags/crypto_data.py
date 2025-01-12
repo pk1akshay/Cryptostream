@@ -89,6 +89,32 @@ def fetch_coingecko_data():
     directory_path = f"/opt/airflow/data/coingecko_data_{timestamp}.csv"
     df.to_csv(directory_path, index=False)
     print(f"CoinGecko data saved to: {directory_path}")
+
+def fetch_coingecko_coins_list():
+    # CoinGecko API URL
+    url = "https://api.coingecko.com/api/v3/coins/list"
+    
+    # Send the GET request to CoinGecko API
+    response = requests.get(url)
+    
+    # Check if the request was successful
+    if response.status_code == 200:
+        data = response.json()
+        
+        # Convert to a Pandas DataFrame for processing
+        df = pd.DataFrame(data)
+        
+        # Add a timestamp column for when the data was fetched
+        timestamp = datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
+        df['row_update_date'] = timestamp
+        
+        # Save the DataFrame to a CSV file
+        directory_path = f"/opt/airflow/data/coingecko_coins_list_{timestamp}.csv"
+        df.to_csv(directory_path, index=False)
+        print(f"CoinGecko coins list data saved to: {directory_path}")
+    else:
+        print("Failed to fetch data from CoinGecko API.")
+        print(f"Response Status Code: {response.status_code}, Message: {response.text}")
         
 # Default arguments for the DAG
 default_args = {
@@ -119,6 +145,11 @@ with DAG(
     fetch_coingecko_task = PythonOperator(
         task_id='fetch_coingecko_data',
         python_callable=fetch_coingecko_data
+    )
+
+    fetch_coindata_list = PythonOperator(
+        task_id='fetch_coingecko_list',
+        python_callable=fetch_coingecko_coins_list
     )
     # The DAG will only have this single task, but you can add more if needed
     fetch_coinapi_data >> fetch_coingecko_task
