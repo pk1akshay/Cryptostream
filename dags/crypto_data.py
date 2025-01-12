@@ -7,7 +7,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 # Define the Python function to fetch and save cryptocurrency data
-def fetch_crypto_data():
+def fetch_coin_api_data():
     url = "https://rest.coinapi.io/v1/assets"
     
     # Your CoinAPI key (replace with your actual API key)
@@ -43,6 +43,52 @@ def fetch_crypto_data():
         print(f"Saving file to: {directory_path}")
     else:
         print("Something is fishy")
+
+def fetch_coingecko_data():
+    # CoinGecko API URL
+    url = "https://api.coingecko.com/api/v3/coins/markets"
+    params = {
+        "vs_currency": "usd",  # Market data in USD
+        "order": "market_cap_desc",  # Order by market cap
+        "per_page": 250,  # Max number of coins per request
+        "page": 1,  # Page number for pagination
+        "sparkline": False  # Include sparkline data or not
+    }
+    
+    all_data = []  # To store combined results
+
+    # Loop through pages to fetch up to 1000 records (4 pages of 250 records each)
+    for page in range(1, 5):  # 4 pages (250 records per page)
+        params["page"] = page
+        response = requests.get(url, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if not data:  # Stop the loop if no more data is returned
+                break
+            all_data.extend(data)  # Add the new data to the list
+        else:
+            print(f"Failed to fetch data for page {page}. Status Code: {response.status_code}")
+            break
+
+    # Convert to a Pandas DataFrame for processing
+    df = pd.DataFrame(all_data)
+    
+    # Select relevant fields from the API response
+    df = df[[
+        "id", "symbol", "name", "current_price", "market_cap", "market_cap_rank",
+        "total_volume", "high_24h", "low_24h", "price_change_24h", "price_change_percentage_24h",
+        "circulating_supply", "total_supply", "max_supply", "ath", "ath_change_percentage"
+    ]]
+    
+    # Add a timestamp column for when the data was fetched
+    timestamp = datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
+    df['row_update_date'] = timestamp
+    
+    # Save the DataFrame to a CSV file
+    directory_path = f"/opt/airflow/data/coingecko_data_{timestamp}.csv"
+    df.to_csv(directory_path, index=False)
+    print(f"CoinGecko data saved to: {directory_path}")
         
 # Default arguments for the DAG
 default_args = {
@@ -65,10 +111,14 @@ with DAG(
 ) as dag:
 
 # Define the task to fetch and save cryptocurrency data to CSV
-    extract_task = PythonOperator(
-        task_id='fetch_crypto_data', 
-        python_callable=fetch_crypto_data
+    fetch_coinapi_data = PythonOperator(
+        task_id='fetch_coin_api_data', 
+        python_callable=fetch_coin_api_data
     )
 
+    fetch_coingecko_task = PythonOperator(
+        task_id='fetch_coingecko_data',
+        python_callable=fetch_coingecko_data
+    )
     # The DAG will only have this single task, but you can add more if needed
-    extract_task
+    fetch_coinapi_data >> fetch_coingecko_task
