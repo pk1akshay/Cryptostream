@@ -1,10 +1,79 @@
 import requests
 import csv
 import os
+import time
 import pandas as pd
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+
+
+
+# Function to fetch all cryptocurrency IDs
+def fetch_crypto_ids():
+    url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/map"
+    API_KEY = "04fcaff7-2831-4f9e-8a64-abcc060265da"
+    headers = {"X-CMC_PRO_API_KEY": API_KEY}
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        coin_ids = [str(coin["id"]) for coin in data["data"]]  # Extract IDs
+        return coin_ids
+    else:
+        print(f"Error fetching IDs: {response.status_code} - {response.text}")
+        return None
+
+# Function to fetch cryptocurrency info in batches with rate limiting
+def fetch_all_coins_info():
+    coin_ids = fetch_crypto_ids()
+    if not coin_ids:
+        print("No coin IDs retrieved, stopping execution.")
+        return
+
+    url = "https://pro-api.coinmarketcap.com/v2/cryptocurrency/info"
+    API_KEY = "04fcaff7-2831-4f9e-8a64-abcc060265da"
+    headers = {"X-CMC_PRO_API_KEY": API_KEY}
+    
+    batch_size = 100  # API request batch size
+    all_data = []
+
+    for i in range(0, len(coin_ids), batch_size):
+        batch = ",".join(coin_ids[i:i+batch_size])  # Create batch of IDs
+        params = {"id": batch}
+
+        response = requests.get(url, params=params, headers=headers)
+
+        if response.status_code == 200:
+            data = response.json()
+            all_data.extend(data["data"].values())  # Store results
+        elif response.status_code == 429:
+            print(f"Rate limit hit at batch {i}-{i+batch_size}. Waiting for 60 seconds...")
+            time.sleep(60)  # Wait for 1 minute and retry the request
+            response = requests.get(url, params=params, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                all_data.extend(data["data"].values())
+            else:
+                print(f"Failed to fetch batch {i}-{i+batch_size} even after retrying: {response.status_code} - {response.text}")
+        else:
+            print(f"Error fetching batch {i}-{i+batch_size}: {response.status_code} - {response.text}")
+
+        # Optional: Add a small delay between requests to prevent hitting the rate limit too quickly
+        time.sleep(3)  # Wait for 3 seconds before making the next request
+
+    # Convert the collected data into a DataFrame
+    df = pd.DataFrame(all_data)
+
+    # Add timestamp
+    timestamp = datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
+    df['row_update_date'] = timestamp
+
+    # Save to CSV
+    directory_path = f"/opt/airflow/data/coinmarketcap_all_coins_info_{timestamp}.csv"
+    df.to_csv(directory_path, index=False)
+    print(f"Data saved to: {directory_path}")
 
 # Define the Python function to fetch and save cryptocurrency data
 def fetch_coin_api_data():
@@ -151,5 +220,11 @@ with DAG(
         task_id='fetch_coingecko_list',
         python_callable=fetch_coingecko_coins_list
     )
+
+    fetch_all_coins_info_task = PythonOperator(
+        task_id="fetch_all_coins_info",
+        python_callable=fetch_all_coins_info
+    )
     # The DAG will only have this single task, but you can add more if needed
-    fetch_coinapi_data >> fetch_coingecko_task >> fetch_coindata_list
+    fetch_coinapi_data >> fetch_coingecko_task >> fetch_coindata_list >> fetch_all_coins_info_task
+    
