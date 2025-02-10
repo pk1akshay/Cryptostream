@@ -19,7 +19,8 @@ CREATE_STAGE_TABLE_SQL = f'''
     CREATE OR REPLACE TABLE {SNOWFLAKE_TABLE} (
         id STRING,
         symbol STRING,
-        name STRING
+        name STRING,
+        row_update_date TIMESTAMP
     );
 '''
 
