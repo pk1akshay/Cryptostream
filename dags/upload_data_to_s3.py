@@ -16,7 +16,7 @@ CREATE_STAGE_TABLE_SQL = f'''
     URL = 's3://coingeckolist' 
     STORAGE_INTEGRATION = snowflake_crypto_si;
 
-    CREATE OR REPLACE TABLE {SNOWFLAKE_TABLE} (
+    CREATE TABLE IF NOT EXISTS {SNOWFLAKE_TABLE} (
         id STRING,
         symbol STRING,
         name STRING,
