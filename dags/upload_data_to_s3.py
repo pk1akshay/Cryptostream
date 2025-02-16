@@ -1,37 +1,53 @@
-import snowflake.connector
+import requests
+import csv
+import boto3
+from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
-from datetime import datetime, timedelta
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook  # Use Airflow's S3Hook
+import os
+import logging
 
-# Snowflake Connection ID
-SNOWFLAKE_CONN_ID = "snowflake_conn"
-S3_STAGE_NAME = "CRYPTO_DATA.PUBLIC.crypto_stage"
-SNOWFLAKE_TABLE = "CRYPTO_DATA.PUBLIC.crypto_coins_list"
+# Airflow Connection IDs
+AWS_CONN_ID = "aws_conn"  # Use the connection configured in Airflow UI
+S3_BUCKET_NAME = "coingeckolist"
 S3_FILE_PATH = "crypto_coins_list.csv"
 
-# Function to create stage and table in Snowflake
-CREATE_STAGE_TABLE_SQL = f'''
-    CREATE OR REPLACE STAGE {S3_STAGE_NAME}
-    URL = 's3://coingeckolist' 
-    STORAGE_INTEGRATION = snowflake_crypto_si;
+# Function to fetch CoinGecko data and store it as CSV
+def fetch_coingecko_coins_list(**kwargs):
+    url = "https://api.coingecko.com/api/v3/coins/list"
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        data = response.json()
+        temp_file = "/tmp/crypto_coins_list.csv"
+        
+        # Writing to CSV
+        with open(temp_file, "w", newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(["id", "symbol", "name", "row_update_date"])  # Writing header
+            for coin in data:
+                formatted_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # Formats with milliseconds
+                writer.writerow([coin["id"], coin["symbol"], coin["name"], formatted_time])
+        
+        # Push file path to XCom
+        kwargs['ti'].xcom_push(key='crypto_data_file', value=temp_file)
+    else:
+        raise Exception("API request failed")
 
-    CREATE TABLE IF NOT EXISTS {SNOWFLAKE_TABLE} (
-        id STRING,
-        symbol STRING,
-        name STRING,
-        row_update_date TIMESTAMP
-    );
-'''
-
-# Function to load data from S3 into Snowflake
-COPY_INTO_SQL = f'''
-    COPY INTO {SNOWFLAKE_TABLE}
-    FROM @{S3_STAGE_NAME}
-    FILES = ('{S3_FILE_PATH}')
-    FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY='"' SKIP_HEADER=1)
-    ON_ERROR = CONTINUE;
-'''
+# Function to upload the file to S3 using Airflow S3Hook
+def upload_to_s3(**kwargs):
+    ti = kwargs['ti']
+    file_path = ti.xcom_pull(task_ids='fetch_coingecko_coins_list', key='crypto_data_file')
+    if not file_path or not os.path.exists(file_path):
+        raise ValueError("No valid file found to upload to S3")
+    
+    # Use Airflow's S3Hook to get AWS credentials
+    s3_hook = S3Hook(aws_conn_id=AWS_CONN_ID)
+    
+    # Upload file to S3
+    s3_hook.load_file(filename=file_path, bucket_name=S3_BUCKET_NAME, key=S3_FILE_PATH, replace=True)
+    logging.info(f"File uploaded to S3: s3://{S3_BUCKET_NAME}/{S3_FILE_PATH}")
 
 # Default DAG arguments
 default_args = {
@@ -45,24 +61,23 @@ default_args = {
 
 # Define DAG
 with DAG(
-    "ingest_crypto_data_to_snowflake",
+    "crypto_coins_list_to_s3",
     default_args=default_args,
-    description="Ingest crypto data from S3 into Snowflake",
-    schedule_interval="0 14 */2 * *",
+    description="ETL DAG for cryptocurrency coins list loading to S3",
+    schedule_interval="0 12 */2 * *",
     start_date=datetime(2025, 1, 4),
     catchup=False,
 ) as dag:
-
-    create_stage_table = SnowflakeOperator(
-        task_id="create_snowflake_stage_table",
-        sql=CREATE_STAGE_TABLE_SQL,
-        snowflake_conn_id=SNOWFLAKE_CONN_ID,
+    fetch_coinapi_data = PythonOperator(
+        task_id='fetch_coingecko_coins_list',
+        python_callable=fetch_coingecko_coins_list,
+        provide_context=True
     )
-
-    load_data = SnowflakeOperator(
-        task_id="load_data_into_snowflake",
-        sql=COPY_INTO_SQL,
-        snowflake_conn_id=SNOWFLAKE_CONN_ID,
+    
+    upload_file_to_s3 = PythonOperator(
+        task_id='upload_to_s3',
+        python_callable=upload_to_s3,
+        provide_context=True
     )
-
-    create_stage_table >> load_data
+    
+    fetch_coinapi_data >> upload_file_to_s3
