@@ -2,10 +2,13 @@ import snowflake.connector
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
+from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
 from datetime import datetime, timedelta
 
 # Snowflake Connection ID
 SNOWFLAKE_CONN_ID = "snowflake_conn"
+DBT_CLOUD_CONN_ID = "dbtconn"
+DBT_JOB_ID = 70471823430185  # Replace with your actual dbt Cloud job ID
 S3_STAGE_NAME = "CRYPTO_DATA.PUBLIC.crypto_stage"
 SNOWFLAKE_TABLE = "CRYPTO_DATA.PUBLIC.crypto_coins_list"
 S3_FILE_PATH = "crypto_coins_list.csv"
@@ -65,4 +68,13 @@ with DAG(
         snowflake_conn_id=SNOWFLAKE_CONN_ID,
     )
 
-    create_stage_table >> load_data
+    run_dbt_models = DbtCloudRunJobOperator(
+        task_id="run_dbt_models",
+        dbt_cloud_conn_id=DBT_CLOUD_CONN_ID,
+        job_id=DBT_JOB_ID,
+        check_interval=30,  # Check status every 30 seconds
+        timeout=600,  # Timeout after 10 minutes
+    )
+
+
+    create_stage_table >> load_data >> run_dbt_models
