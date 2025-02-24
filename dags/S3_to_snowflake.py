@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 
 # Snowflake Connection ID
 SNOWFLAKE_CONN_ID = "snowflake_conn"
-DBT_CLOUD_CONN_ID = "dbtconn"
-DBT_JOB_ID = 70471823430185  # Replace with your actual dbt Cloud job ID
+DBT_CLOUD_CONN_ID = "dbt_conn"
+DBT_JOB_ID = 70471823430549  # Replace with your actual dbt Cloud job ID
 S3_STAGE_NAME = "CRYPTO_DATA.PUBLIC.crypto_stage"
 SNOWFLAKE_TABLE = "CRYPTO_DATA.PUBLIC.crypto_coins_list"
 S3_FILE_PATH = "crypto_coins_list.csv"
