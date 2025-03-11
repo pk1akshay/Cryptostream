@@ -4,12 +4,12 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
-sys.path.append("/opt/airflow/scripts")
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
-from scripts.coinapi import fetch_coin_api_data
-from scripts.coingecko import fetch_coingecko_data, fetch_coingecko_coins_list
-from scripts.coinmarketcap import fetch_all_coins_info
+from scripts import fetch_coin_api_data
+from scripts import fetch_coingecko_data, fetch_coingecko_coins_list
+from scripts import fetch_all_coins_info
 
 # Default DAG arguments
 default_args = {

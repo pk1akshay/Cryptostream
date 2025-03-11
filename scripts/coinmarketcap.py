@@ -1,6 +1,7 @@
 # scripts/coinmarketcap.py
 import requests
-from scripts.helpers import save_to_csv
+import pandas as pd
+from .helper import save_to_csv
 from config.settings import COINMARKETCAP_API_KEY
 
 def fetch_crypto_ids():

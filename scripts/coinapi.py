@@ -1,7 +1,10 @@
 # scripts/coinapi.py
+import sys
+import os
 import requests
 import pandas as pd
-from scripts.helpers import save_to_csv
+from .helper import save_to_csv
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config.settings import COINAPI_API_KEY
 
 def fetch_coin_api_data():
@@ -10,6 +13,7 @@ def fetch_coin_api_data():
 
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
+        print(f"Hurray!!")
         df = pd.DataFrame(response.json())
         df = df[[
             "asset_id", "name", "type_is_crypto", "data_quote_start", "data_quote_end",
@@ -18,5 +22,6 @@ def fetch_coin_api_data():
             "volume_1day_usd", "volume_1mth_usd", "price_usd", "data_start", "data_end"
         ]]
         save_to_csv(df, "crypto_coinapi_data")
+        print(f"Hurray!!")
     else:
         print(f"Error fetching data: {response.status_code}")

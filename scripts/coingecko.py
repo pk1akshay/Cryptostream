@@ -1,7 +1,7 @@
 # scripts/coingecko.py
 import requests
 import pandas as pd
-from scripts.helpers import save_to_csv
+from .helper import save_to_csv
 from config.settings import COINGECKO_API_URL
 
 def fetch_coingecko_data():
