@@ -51,4 +51,4 @@ with DAG(
         python_callable=fetch_all_coins_info
     )
 
-    fetch_coinapi_task >> fetch_coingecko_task >> fetch_all_coins_info_task
+    fetch_coinapi_task >> fetch_coingecko_task >> fetch_coindata_list_task >> fetch_all_coins_info_task

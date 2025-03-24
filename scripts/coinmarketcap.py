@@ -1,7 +1,7 @@
 # scripts/coinmarketcap.py
 import requests
 import pandas as pd
-from .helper import save_to_csv
+from .helper import save_to_csv_coinmarketcap
 from config.settings import COINMARKETCAP_API_KEY
 
 def fetch_crypto_ids():
@@ -33,4 +33,4 @@ def fetch_all_coins_info():
             print(f"Error fetching batch {i}-{i+batch_size}: {response.status_code}")
     
     df = pd.DataFrame(all_data)
-    save_to_csv(df, "coinmarketcap_all_coins_info")
+    save_to_csv_coinmarketcap(df, filename="coinmarketcap_all_coins_info")
