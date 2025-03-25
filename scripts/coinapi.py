@@ -3,7 +3,7 @@ import sys
 import os
 import requests
 import pandas as pd
-from .helper import save_to_csv_coinapi
+from .helper import save_to_csv
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config.settings import COINAPI_API_KEY
 
@@ -21,7 +21,7 @@ def fetch_coin_api_data():
             "data_trade_end", "data_symbols_count", "volume_1hrs_usd", 
             "volume_1day_usd", "volume_1mth_usd", "price_usd", "data_start", "data_end"
         ]]
-        save_to_csv_coinapi(df, filename = "crypto_coinapi_data")
+        save_to_csv(df, filename = "crypto_coinapi_data", S3_FILE_PATH = "coinapi_coins_desc.csv")
         print(f"Hurray!!")
     else:
         print(f"Error fetching data: {response.status_code}")

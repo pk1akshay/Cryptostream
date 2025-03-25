@@ -1,7 +1,7 @@
 # scripts/coingecko.py
 import requests
 import pandas as pd
-from .helper import save_to_csv_coingecko_list, save_to_csv_coingecko
+from .helper import save_to_csv
 from config.settings import COINGECKO_API_URL
 
 def fetch_coingecko_data():
@@ -31,7 +31,7 @@ def fetch_coingecko_data():
         "price_change_percentage_24h", "circulating_supply", "total_supply",
         "max_supply", "ath", "ath_change_percentage"
     ]]
-    save_to_csv_coingecko(df, filename="coingecko_market_data")
+    save_to_csv(df, filename="coingecko_market_data", S3_FILE_PATH = "coingecko_coins_list.csv")
 
 def fetch_coingecko_coins_list():
     url = f"{COINGECKO_API_URL}/coins/list"
@@ -39,6 +39,6 @@ def fetch_coingecko_coins_list():
     
     if response.status_code == 200:
         df = pd.DataFrame(response.json())
-        save_to_csv_coingecko_list(df, filename="coingecko_coins_list")
+        save_to_csv(df, filename="coingecko_coins_list", S3_FILE_PATH = "coingecko.csv")
     else:
         print(f"Error fetching coins list: {response.status_code}")
