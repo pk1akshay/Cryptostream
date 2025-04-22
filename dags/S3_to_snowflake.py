@@ -11,7 +11,7 @@ DBT_CLOUD_CONN_ID = "dbt_conn"
 DBT_JOB_ID = 70471823430549  # Replace with your actual dbt Cloud job ID
 S3_STAGE_NAME = "CRYPTO_DATA.PUBLIC.crypto_stage"
 SNOWFLAKE_TABLE = "CRYPTO_DATA.PUBLIC.crypto_coins_list"
-S3_FILE_PATH = "crypto_coins_list.csv"
+S3_FILE_PATH = "coingecko.csv"
 
 # Function to create stage and table in Snowflake
 CREATE_STAGE_TABLE_SQL = f'''

@@ -2,7 +2,7 @@
 import requests
 import pandas as pd
 from .helper import save_to_csv
-from config.settings import COINGECKO_API_URL, SNOWFLAKE_TABLE, S3_STAGE_NAME, S3_FILE_PATH
+from config.settings import COINGECKO_API_URL, SNOWFLAKE_TABLE, S3_STAGE_NAME, S3_FILE_PATH1
 
 
 def fetch_coingecko_data():
@@ -63,8 +63,13 @@ CREATE_TABLE_SQL = f'''
 # Function to load data from S3 into Snowflake
 COPY_INTO_SQL = f'''
     COPY INTO {SNOWFLAKE_TABLE}
-    FROM @{S3_STAGE_NAME}
-    FILES = ('{S3_FILE_PATH}')
-    FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY='"' SKIP_HEADER=1)
-    ON_ERROR = CONTINUE;
+FROM @{S3_STAGE_NAME}/{S3_FILE_PATH1}
+FILE_FORMAT = (
+    TYPE = 'CSV'
+    FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+    SKIP_HEADER = 1
+    ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE
+)
+ON_ERROR = 'CONTINUE';
+
    '''
