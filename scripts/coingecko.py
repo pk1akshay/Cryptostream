@@ -2,6 +2,7 @@
 import requests
 import pandas as pd
 from .helper import save_to_csv
+from datetime import datetime, timedelta, timezone
 from config.settings import COINGECKO_API_URL, SNOWFLAKE_TABLE, S3_STAGE_NAME, S3_FILE_PATH1
 
 
@@ -40,6 +41,9 @@ def fetch_coingecko_coins_list():
     
     if response.status_code == 200:
         df = pd.DataFrame(response.json())
+        pst_offset = timezone(timedelta(hours=-7))
+        pst_time = datetime.now(pst_offset)
+        df['row_insert_date'] = pst_time.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         save_to_csv(df, filename="coingecko_coins_list", S3_FILE_PATH = "coingecko.csv")
     else:
         print(f"Error fetching coins list: {response.status_code}")
@@ -56,7 +60,7 @@ CREATE_TABLE_SQL = f'''
         id STRING,
         symbol STRING,
         name STRING,
-        row_update_date TIMESTAMP
+        row_insert_date TIMESTAMP
     );
 '''
 
