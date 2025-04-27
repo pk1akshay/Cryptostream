@@ -10,8 +10,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
 from scripts import fetch_coin_api_data
-from scripts import fetch_coingecko_data, fetch_coingecko_coins_list, CREATE_STAGE_SQL, CREATE_TABLE_SQL, COPY_INTO_SQL
-from scripts import fetch_all_coins_info
+from scripts import fetch_coingecko_data, fetch_coingecko_coins_list, CREATE_STAGE_SQL, CREATE_TABLE_SQL, COPY_INTO_SQL, CREATE_STAGE_SQL_COIN_GECKO, CREATE_TABLE_SQL_COIN_GECKO, COPY_INTO_SQL_COIN_GECKO
+#from scripts import fetch_all_coins_info
 
 SNOWFLAKE_CONN_ID = "snowflake_conn"
 
@@ -68,10 +68,29 @@ with DAG(
         snowflake_conn_id = SNOWFLAKE_CONN_ID,
     )
 
-
-    fetch_all_coins_info_task = PythonOperator(
-        task_id="fetch_all_coins_info",
-        python_callable=fetch_all_coins_info
+    create_stage_table_cg = SnowflakeOperator(
+        task_id="create_snowflake_stage_table_cg",
+        sql = CREATE_STAGE_SQL_COIN_GECKO,
+        snowflake_conn_id= SNOWFLAKE_CONN_ID,
     )
 
-    fetch_coinapi_task >> fetch_coingecko_task >> fetch_coindata_list_task >> create_stage_table >> create_table >> load_data >> fetch_all_coins_info_task
+    create_table_cg = SnowflakeOperator(
+        task_id="create_snowflake_table_cg",
+        sql = CREATE_TABLE_SQL_COIN_GECKO,
+        snowflake_conn_id= SNOWFLAKE_CONN_ID,
+    )
+
+    load_data_cg = SnowflakeOperator(
+        task_id="load_data_into_snowflake_cg",
+        sql = COPY_INTO_SQL_COIN_GECKO,
+        snowflake_conn_id = SNOWFLAKE_CONN_ID,
+    )   
+
+
+    # fetch_all_coins_info_task = PythonOperator(
+    #     task_id="fetch_all_coins_info",
+    #     python_callable=fetch_all_coins_info
+    # )
+
+    fetch_coinapi_task >> fetch_coingecko_task >> fetch_coindata_list_task >> create_stage_table >> create_table >> load_data >> create_stage_table_cg >> create_table_cg >> load_data_cg 
+    # >> fetch_all_coins_info_task
